@@ -15,18 +15,38 @@ datasource db {
 }
 
 model Service {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  id       String            @id @default(auto()) @map("_id") @db.ObjectId
   name     String
   price    Float
   duration Int // minutos
 
-  bookings Booking[] @relation("ServiceToBooking")
+  bookings BookingService[]  // updated
 }
 
 model Booking {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  serviceId  String   @db.ObjectId
-  service    Service? @relation("ServiceToBooking", fields: [serviceId], references: [id])
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
   clientName String
   date       DateTime
+
+  services   BookingService[]  // novo
+
+  barberId   String?   @db.ObjectId
+  barber     Barber?   @relation(fields: [barberId], references: [id])
+}
+
+model BookingService {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId String   @db.ObjectId
+  serviceId String   @db.ObjectId
+
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  service   Service  @relation(fields: [serviceId], references: [id])
+}
+
+
+model Barber {
+  id       String    @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  photo    String
+  bookings Booking[]
 }
