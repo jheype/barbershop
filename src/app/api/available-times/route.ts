@@ -1,34 +1,96 @@
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const date = searchParams.get("date");
-  const serviceId = searchParams.get("serviceId");
+  const barberId = searchParams.get("barber");
+  const servicesParam = searchParams.get("services");
 
-  if (!date || !serviceId) {
-    return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+  if (!date || !barberId || !servicesParam) {
+    return NextResponse.json({ error: "Parametros ausentes."}, { status: 400 });
   }
 
-  const allTimes = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
+  const rawServiceIds = servicesParam.split(",");
 
-  const bookings = await prisma.booking.findMany({
-    where: {
-      serviceId,
-      date: {
-        gte: new Date(date),
-        lt: new Date(new Date(date).setDate(new Date(date).getDate() + 1)),
+  const serviceIds = rawServiceIds.filter(id => /^[a-f\d]{24}$/i.test(id));
+
+  if (serviceIds.length === 0) {
+    return NextResponse.json({ error: "Nenhum ID de servico valido"}, { status: 400 });
+  }
+
+  try {
+    const services = await prisma.service.findMany({
+      where: {
+        id: {
+          in: serviceIds,
+        },
       },
-    },
-  });
+    });
 
-  const bookedTimes = bookings.map((b : { date: Date }) =>
-    b.date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-  );
+    const totalDuration = services.reduce((acc, service) => acc + service.duration, 0);
 
-  const availableTimes = allTimes.filter(
-    (time) => !bookedTimes.includes(time)
-  );
+    const startHour = 7;
+    const endHour = 23;
+    const availableTimes: string[] = [];
 
-  return NextResponse.json(availableTimes ?? []);
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute of [0, 30]) {
+        const time = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+        availableTimes.push(time);
+      }
+    }
+
+    const startOfDay = new Date(`${date}T00:00:00`);
+    const endOfDay = new Date(`${date}T23:59:59`);
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        barberId,
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      include: {
+        services: {
+          include: {
+            service: true,
+          },
+        },
+      },
+    });
+
+    function hasConflict(candidate: string) {
+      const [h, m] = candidate.split(":").map(Number);
+      const start = new Date(`${date}T${candidate}`);
+      const end = new Date(start.getTime() + totalDuration * 60 * 1000);
+
+      for (const booking of bookings) {
+        const bookingStart = new Date(booking.date);
+        const totalBookingDuration = booking.services.reduce(
+          (acc, bs) => acc + (bs.service?.duration || 0),
+          0
+        );
+        const bookingEnd = new Date(bookingStart.getTime() + totalBookingDuration * 60 * 1000);
+
+        if (
+          (start >= bookingStart && start < bookingEnd) ||
+          (end > bookingStart && end <= bookingEnd) ||
+          (start <= bookingStart && end >= bookingEnd)
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    const freeTimes = availableTimes.filter(time => !hasConflict(time));
+
+    return NextResponse.json(freeTimes);
+  } catch (error) {
+    console.error("Erro ao buscar horarios:", error);
+    return NextResponse.json({ error: "Erro interno"}, { status: 500 });
+  }
 }
