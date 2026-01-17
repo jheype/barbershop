@@ -1,0 +1,1 @@
+This package was debranded: UI strings translated to English (best-effort), colors remapped (red->fuchsia, orange->indigo), and brand identifiers removed.

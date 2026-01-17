@@ -1,0 +1,225 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: #18181B;
+  color: #F8F9FA;
+  width: 100vw;
+  height: 100vh;
+  overflow-x: hidden;
+
+  --app-bg: #18181B;
+  --app-surface: #1f1f23;
+  --app-card: #232329;
+  --app-border: rgba(255, 255, 255, 0.10);
+  --app-text: #F8F9FA;
+  --app-muted: #9AA0A6;
+
+  /* indigo -> indigo */
+  --app-accent: #6366f1;   /* indigo-500 */
+  --app-accent-2: #4f46e5; /* indigo-600 */
+}
+
+/* -------------------------
+   React Day Picker (RDP)
+   ------------------------- */
+
+.rdp {
+  --rdp-cell-size: 2rem;
+  color: var(--app-text);
+  max-width: 100%;
+}
+
+/* month container */
+.rdp-months {
+  width: 100%;
+  max-width: 100%;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.rdp-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* month header */
+.rdp-caption {
+  color: var(--app-text);
+}
+
+.rdp-caption_label {
+  font-weight: 600;
+}
+
+/* nav buttons */
+.rdp-nav_button {
+  color: var(--app-text);
+  border: 1px solid var(--app-border);
+  background: transparent;
+  border-radius: 10px;
+}
+
+.rdp-nav_button:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* weekdays and days */
+.rdp-weekday {
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.rdp-day {
+  border-radius: 12px;
+}
+
+/* focus: indigo -> indigo */
+.rdp-day:focus,
+.rdp-day:focus-visible,
+.rdp-button_reset:focus,
+.rdp-button_reset:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35) !important; /* indigo-500 */
+}
+
+.rdp-day:hover:not([aria-selected="true"]) {
+  background: rgba(99, 102, 241, 0.12); /* indigo-500 */
+}
+
+/* selected day */
+.rdp-day[aria-selected="true"] {
+  background: var(--app-accent);
+  color: #ffffff;
+}
+
+/* outside/disabled day */
+.rdp-day_outside,
+.rdp-day_disabled {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+/* scrollbar */
+*::-webkit-scrollbar {
+  width: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #0f1115;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #2a2e36;
+  border-radius: 999px;
+  border: 2px solid #0f1115;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #3a3f49;
+}
+
+@layer base {
+  :root {
+    --background: 220 15% 6%;
+    --foreground: 0 0% 98%;
+
+    --card: 220 14% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 220 14% 8%;
+    --popover-foreground: 0 0% 98%;
+
+    /* indigo -> indigo */
+    --primary: 239 84% 67%; /* indigo-500 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 12% 12%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 220 12% 12%;
+    --muted-foreground: 0 0% 70%;
+
+    /* indigo -> indigo */
+    --accent: 239 45% 18%;
+    --accent-foreground: 0 0% 98%;
+
+    /* fuchsia -> fuchsia */
+    --destructive: 330 81% 60%; /* fuchsia-500 */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 12% 18%;
+    --input: 220 12% 18%;
+
+    /* indigo -> indigo */
+    --ring: 239 84% 67%;
+
+    /* indigo -> indigo (chart-1) */
+    --chart-1: 239 84% 67%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 210 70% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 220 15% 6%;
+    --foreground: 0 0% 98%;
+
+    --card: 220 14% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 220 14% 8%;
+    --popover-foreground: 0 0% 98%;
+
+    /* indigo -> indigo */
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 12% 12%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 220 12% 12%;
+    --muted-foreground: 0 0% 70%;
+
+    /* indigo -> indigo */
+    --accent: 239 45% 18%;
+    --accent-foreground: 0 0% 98%;
+
+    /* fuchsia -> fuchsia */
+    --destructive: 330 81% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 12% 18%;
+    --input: 220 12% 18%;
+
+    /* indigo -> indigo */
+    --ring: 239 84% 67%;
+
+    /* indigo -> indigo (chart-1) */
+    --chart-1: 239 84% 67%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 210 70% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

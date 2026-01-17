@@ -1,0 +1,453 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// =======================
+//        MODELS
+// =======================
+
+model Resource {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  dailyCapacity Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  services ServiceResource[]
+}
+
+model ServiceResource {
+  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  serviceId     String @db.ObjectId
+  resourceId    String @db.ObjectId
+  unitsRequired Int    @default(1)
+
+  service  Service  @relation(fields: [serviceId], references: [id])
+  resource Resource @relation(fields: [resourceId], references: [id])
+
+  @@index([serviceId])
+  @@index([resourceId])
+}
+
+model Service {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  price       Float
+  duration    Int // minutos
+  category    String? // ex.: Cabelo, Barba, Tratamento
+  description String?
+  active      Boolean @default(true)
+
+  // relações
+  bookings  BookingService[] // N:N com Booking via tabela intermediária
+  products  ServiceProduct[] // insumos por serviço (quantidade por atendimento)
+  barbers   BarberService[] // competências (quais barbeiros podem fazer este serviço)
+  resources ServiceResource[] // << lado oposto para ServiceResource
+
+  // timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@index([category])
+  @@index([name])
+}
+
+model Barber {
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  name   String
+  photo  String
+  active Boolean @default(true)
+
+  // personal/contact
+  email     String?
+  whatsapp  String?
+  cpf       String?
+  birthDate DateTime?
+
+  // relações
+  bookings  Booking[]
+  skills    BarberService[]
+  workHours BarberWorkHours?
+
+  commissionMode    BarberCommissionMode? @default(PERCENT)
+  commissionPercent Float?
+  commissionFixed   Float?
+
+  payoutMethod    BarberPayoutMethod?
+  payoutFrequency BarberPayoutFrequency?
+
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  BarberCommissionConfig BarberCommissionConfig?
+  BarberSalaryPayment    BarberSalaryPayment[]
+  BarberAdvance          BarberAdvance[]
+
+  @@index([active])
+  @@index([name])
+  @@index([cpf])
+  @@index([email])
+}
+
+model BarberWorkHours {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  barberId String @db.ObjectId
+  barber   Barber @relation(fields: [barberId], references: [id])
+
+  // 7 entries: [{ weekday, enabled, start, end, lunchStart, lunchEnd }, ...]
+  days Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([barberId])
+}
+
+model BarberCommissionConfig {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  barberId String @db.ObjectId
+  barber   Barber @relation(fields: [barberId], references: [id])
+
+  payload Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([barberId])
+}
+
+model BarberSalaryPayment {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  barberId String @db.ObjectId
+  barber   Barber @relation(fields: [barberId], references: [id])
+
+  amountCents Int
+  dateKey     String? // YYYY-MM-DD (opcional)
+  note        String?
+
+  cashEntryId String?    @db.ObjectId
+  cashEntry   CashEntry? @relation(fields: [cashEntryId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([barberId])
+  @@index([createdAt])
+}
+
+model BarberAdvance {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  barberId String @db.ObjectId
+  barber   Barber @relation(fields: [barberId], references: [id])
+
+  amountCents Int
+  dateKey     String? // YYYY-MM-DD (opcional)
+  note        String?
+
+  cashEntryId String?    @db.ObjectId
+  cashEntry   CashEntry? @relation(fields: [cashEntryId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([barberId])
+  @@index([createdAt])
+}
+
+model Client {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  phoneRaw        String
+  phoneNormalized String
+  active          Boolean   @default(true)
+  notes           String? // internal notes (plain text)
+  lastVisitAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  bookings Booking[]
+  sales    Sale[]
+
+  @@unique([phoneNormalized])
+  @@index([active])
+  @@index([lastVisitAt])
+}
+
+model Booking {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  clientName  String
+  clientPhone String?
+  clientId    String?       @db.ObjectId
+  client      Client?       @relation(fields: [clientId], references: [id])
+  date        DateTime
+  status      BookingStatus @default(SCHEDULED)
+
+  // relações
+  services BookingService[] // N:N: serviços deste agendamento
+  barberId String?          @db.ObjectId
+  barber   Barber?          @relation(fields: [barberId], references: [id])
+
+  waReminderSent Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments Payment[] @relation("BookingPayments")
+  sales    Sale[]
+
+  @@index([date])
+  @@index([status])
+  @@index([barberId])
+  @@index([clientId])
+}
+
+model BookingService {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId String @db.ObjectId
+  serviceId String @db.ObjectId
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@unique([bookingId, serviceId])
+  @@index([serviceId])
+}
+
+model Product {
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  sku      String? // opcional
+  unit     String? // ex.: ml, g, un
+  stockQty Float   @default(0) // saldo em estoque
+  active   Boolean @default(true)
+
+  // optional pricing (bomboniere)
+  costCents  Int?
+  priceCents Int?
+
+  lowStockThreshold Float @default(0)
+
+  // relações
+  serviceLinks ServiceProduct[]
+  moves        StockMove[]
+
+  saleItems SaleItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@index([name])
+  @@index([sku])
+}
+
+model Sale {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  clientId String? @db.ObjectId
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  bookingId String?  @db.ObjectId
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+
+  totalCents Int     @default(0)
+  note       String?
+
+  items SaleItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([bookingId])
+  @@index([createdAt])
+}
+
+model SaleItem {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  saleId String @db.ObjectId
+  sale   Sale   @relation(fields: [saleId], references: [id])
+
+  productId String  @db.ObjectId
+  product   Product @relation(fields: [productId], references: [id])
+
+  productName String
+
+  qty Float
+
+  unitPriceCents Int?
+  unitCostCents  Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model ServiceProduct {
+  id                 String @id @default(auto()) @map("_id") @db.ObjectId
+  serviceId          String @db.ObjectId
+  productId          String @db.ObjectId
+  quantityPerService Float
+
+  service Service @relation(fields: [serviceId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([serviceId, productId])
+  @@index([serviceId])
+  @@index([productId])
+}
+
+model StockMove {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  productId String        @db.ObjectId
+  kind      StockMoveKind
+  qty       Float
+  note      String?
+
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([kind])
+}
+
+model BarberService {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  barberId  String @db.ObjectId
+  serviceId String @db.ObjectId
+
+  barber  Barber  @relation(fields: [barberId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@unique([barberId, serviceId])
+  @@index([barberId])
+  @@index([serviceId])
+}
+
+// =======================
+//  MODELOS PARA PAGAMENTOS/CAIXA
+// =======================
+
+model Payment {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId String  @db.ObjectId
+  booking   Booking @relation("BookingPayments", fields: [bookingId], references: [id])
+
+  method         PaymentMethod
+  total          Float
+  discount       Float         @default(0)
+  surcharge      Float         @default(0)
+  netTotal       Float
+  amountReceived Float         @default(0)
+  change         Float         @default(0)
+  note           String?
+
+  createdAt DateTime @default(now())
+
+  cashEntries CashEntry[] @relation("PaymentCashEntries")
+
+  @@index([bookingId])
+  @@index([createdAt])
+}
+
+model CashEntry {
+  id     String   @id @default(auto()) @map("_id") @db.ObjectId
+  kind   CashKind
+  amount Float
+  note   String?
+
+  paymentMethod String?
+  paymentId     String?  @db.ObjectId
+  payment       Payment? @relation("PaymentCashEntries", fields: [paymentId], references: [id])
+  saleId        String?
+
+  createdAt           DateTime              @default(now())
+  BarberSalaryPayment BarberSalaryPayment[]
+  BarberAdvance       BarberAdvance[]
+
+  @@index([kind])
+  @@index([paymentId])
+}
+
+// =======================
+//        ENUMS
+// =======================
+
+enum BookingStatus {
+  SCHEDULED
+  CONFIRMED
+  DONE
+  CANCELED
+}
+
+enum StockMoveKind {
+  IN
+  OUT
+  ADJUST
+}
+
+enum PaymentMethod {
+  CASH
+  PIX
+  CARD_DEBIT
+  CARD_CREDIT
+  OTHER
+}
+
+enum CashKind {
+  OPENING
+  IN
+  OUT
+  SALE
+  REFUND
+  ADJUST
+}
+
+enum BarberCommissionMode {
+  PERCENT
+  FIXED
+}
+
+enum BarberPayoutMethod {
+  CASH
+  PIX
+  BANK_TRANSFER
+  OTHER
+}
+
+enum BarberPayoutFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+model BusinessHours {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  weekday   Int // 0=Dom .. 6=Sáb
+  isOpen    Boolean @default(true)
+  openMins  Int
+  closeMins Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([weekday])
+}
+
+model BusinessDateOverride {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  dateKey   String // "YYYY-MM-DD"
+  isClosed  Boolean @default(false)
+  openMins  Int?
+  closeMins Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([dateKey])
+}
